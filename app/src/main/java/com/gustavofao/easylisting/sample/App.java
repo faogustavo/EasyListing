@@ -33,7 +33,7 @@ public class App extends Application {
             public void loadImage(ImageView imageView, String url) {
                 Picasso.with(imageView.getContext())
                         .load(url)
-                        .error(-1)
+                        .error(R.mipmap.ic_launcher)
                         .placeholder(R.mipmap.ic_launcher)
                         .into(imageView);
             }

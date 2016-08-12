@@ -1,5 +1,6 @@
 package com.gustavofao.easylisting.sample.Models;
 
+import com.gustavofao.easylisting.Annotations.ComputedFieldValue;
 import com.gustavofao.easylisting.Annotations.CustomDatePattern;
 import com.gustavofao.easylisting.Annotations.InnerValues;
 import com.gustavofao.easylisting.Annotations.RowIdentifier;
@@ -13,7 +14,7 @@ import java.util.Date;
 public class Book {
 
     @RowIdentifier
-    private long id;
+    private String id;
 
     @FieldValue(R.id.image)
     private String image;
@@ -21,7 +22,6 @@ public class Book {
     @FieldValue(R.id.readed)
     private boolean readed;
 
-    @FieldValue(R.id.title)
     private String title;
 
     @FieldValue(R.id.publishDate)
@@ -33,11 +33,11 @@ public class Book {
 
     public Book() {}
 
-    public long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -49,6 +49,7 @@ public class Book {
         this.readed = readed;
     }
 
+    @ComputedFieldValue(R.id.title)
     public String getTitle() {
         return title;
     }

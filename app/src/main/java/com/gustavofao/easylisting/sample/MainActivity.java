@@ -74,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
         List<Object> data = new ArrayList<>();
         for (int i = 0; i < quantity; i++) {
             Book book = new Book();
-            book.setId(150 + i);
+            book.setId(String.valueOf(150 + i));
             book.setReaded(i % 2 == 0);
             book.setTitle(String.format("Book %d", i + 1));
             book.setPublishDate(new Date());

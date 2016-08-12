@@ -6,7 +6,7 @@ The easiest way to implement a list on Android. No more adapters! No more inflat
 ## INSTALL
 Add this dependecy from jCenter to your gradle app level:
 ```gradle
-compile 'com.gustavofao:EasyListing:1.0.0'
+compile 'com.gustavofao:EasyListing:1.0.2'
 ```
 
 If the installation fails, add this line to your gradle top level:
@@ -20,6 +20,7 @@ maven { url "http://dl.bintray.com/faogustavo/maven" }
 All models to be convetd need to have two things and one optional.
 * It need to have the Annotation @RowView with the layout resource id for that model as value.
 * It need to have the @FieldValue annotation on your attributes setting the value of the id you want to populate.
+** You can also use the @ComputedInnerValue to show from a method.
 * **[OPTIONAL]** Add the @RowIdentifier on your id. By now it must be a long but soon I will make it to accept Strings or int.
 ** if you did not set this value, it will always be -1.
 
@@ -45,7 +46,6 @@ public class Book {
     @FieldValue(R.id.readed)
     private boolean readed;
 
-    @FieldValue(R.id.title)
     private String title;
 
     @FieldValue(R.id.publishDate)
@@ -56,6 +56,11 @@ public class Book {
     /**
      * GETTERS AND SETTERS
      */
+     
+     @ComputedFieldValue(R.id.title)
+     public String getTitle() {
+         return title;
+     }
 }
 
 ```

@@ -1,5 +1,6 @@
 package com.gustavofao.easylisting;
 
+import com.gustavofao.easylisting.Annotations.ComputedFieldValue;
 import com.gustavofao.easylisting.Annotations.FieldValue;
 import com.gustavofao.easylisting.Annotations.InnerFieldValue;
 import com.gustavofao.easylisting.Annotations.InnerValues;
@@ -7,6 +8,7 @@ import com.gustavofao.easylisting.Annotations.RowIdentifier;
 import com.gustavofao.easylisting.Annotations.RowView;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -55,6 +57,18 @@ public class ReflectionUtils {
         }
 
         return valueField;
+    }
+
+    public static List getComputedFieldsForRow(Object obj) {
+        List<Method> allMethods = Arrays.asList(obj.getClass().getDeclaredMethods());
+        List<Method> valueMethods = new ArrayList<>();
+
+        for (Method method : allMethods) {
+            if (method.isAnnotationPresent(ComputedFieldValue.class))
+                valueMethods.add(method);
+        }
+
+        return valueMethods;
     }
 
     public static List<Field> getInnerFieldsForRow(Object obj) {

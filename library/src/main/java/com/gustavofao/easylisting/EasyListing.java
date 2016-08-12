@@ -11,11 +11,15 @@ import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.gustavofao.easylisting.Annotations.ComputedFieldValue;
 import com.gustavofao.easylisting.Annotations.CustomDatePattern;
 import com.gustavofao.easylisting.Annotations.FieldValue;
 import com.gustavofao.easylisting.Annotations.InnerFieldValue;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -117,51 +121,77 @@ public class EasyListing {
                 f.setAccessible(oldAcessible);
             }
         }
+
+        List<Method> computedValues = ReflectionUtils.getComputedFieldsForRow(item);
+        for (Method method : computedValues) {
+            setValueOfItem(method, item, convertView.findViewById(method.getAnnotation(ComputedFieldValue.class).value()));
+        }
+    }
+
+    private static void setValueOfItem(Object objValue, View view, Annotation... annotations) {
+        String objValueAsString = String.valueOf(objValue);
+        if (objValue instanceof Boolean) {
+            if (view instanceof CompoundButton) {
+                ((CompoundButton) view).setChecked(Boolean.parseBoolean(objValueAsString));
+            }
+        }
+        else if (objValue instanceof String) {
+            if (view instanceof TextView) {
+                ((TextView) view).setText(objValueAsString);
+            } else if (view instanceof ImageView) {
+                if (EasyListing.getInstance().getImageLoader() != null)
+                    EasyListing.getInstance().getImageLoader().loadImage((ImageView) view, objValueAsString);
+            }
+        }
+        else if (objValue instanceof Integer) {
+            int val = Integer.valueOf(objValueAsString);
+            if (view instanceof ImageView) {
+                ((ImageView) view).setImageResource(val);
+            } else if (view instanceof TextView) {
+                ((TextView) view).setText(String.valueOf(val));
+            }
+        } else if (objValue instanceof Date || objValue instanceof Calendar) {
+            Date date;
+            String datePattern = EasyListing.getInstance().getDateFormat();
+
+            if (annotations != null) {
+                for (Annotation annotation : annotations) {
+                    if (annotation instanceof CustomDatePattern) {
+                        datePattern = ((CustomDatePattern) annotation).value();
+                    }
+                }
+            }
+
+            if (objValue instanceof Date)
+                date = (Date) objValue;
+            else
+                date = ((Calendar) objValue).getTime();
+
+            if (view instanceof TextView) {
+                ((TextView) view).setText(new SimpleDateFormat(datePattern).format(date));
+            }
+        }
+    }
+
+    private static void setValueOfItem(Method method, Object object, View view) {
+        boolean oldAcessible = method.isAccessible();
+        try {
+            method.setAccessible(true);
+            Object objValue = method.invoke(object);
+            setValueOfItem(objValue, view, method.getAnnotations());
+        } catch (Exception e) {
+            Log.e(EasyListing.class.getSimpleName(), String.format("Failed to invoke method %s", method.getName()));
+        } finally {
+            method.setAccessible(oldAcessible);
+        }
     }
 
     private static void setValueOfItem(Field field, Object object,  View view) {
         boolean oldAcessible = field.isAccessible();
-
         try {
             field.setAccessible(true);
             Object objValue = field.get(object);
-            if (objValue instanceof Boolean) {
-                if (view instanceof CompoundButton) {
-                    ((CompoundButton) view).setChecked(field.getBoolean(object));
-                }
-            }
-            else if (objValue instanceof String) {
-                String value = String.valueOf(objValue);
-                if (view instanceof TextView) {
-                    ((TextView) view).setText(value);
-                } else if (view instanceof ImageView) {
-                    if (EasyListing.getInstance().getImageLoader() != null)
-                        EasyListing.getInstance().getImageLoader().loadImage((ImageView) view, value);
-                }
-            }
-            else if (objValue instanceof Integer) {
-                int val = field.getInt(object);
-                if (view instanceof ImageView) {
-                    ((ImageView) view).setImageResource(val);
-                } else if (view instanceof TextView) {
-                    ((TextView) view).setText(String.valueOf(val));
-                }
-            } else if (objValue instanceof Date || objValue instanceof Calendar) {
-                Date date;
-
-                if (objValue instanceof Date)
-                    date = (Date) field.get(object);
-                else
-                    date = ((Calendar) field.get(object)).getTime();
-
-                String datePattern = EasyListing.getInstance().getDateFormat();
-                if (field.isAnnotationPresent(CustomDatePattern.class))
-                    datePattern = field.getAnnotation(CustomDatePattern.class).value();
-
-                if (view instanceof TextView) {
-                    ((TextView) view).setText(new SimpleDateFormat(datePattern).format(date));
-                }
-            }
+            setValueOfItem(objValue, view, field.getAnnotations());
         }
         catch (IllegalAccessException e) {
             Log.e(EasyListing.class.getSimpleName(), String.format("Failed to set value of %s", field.getName()));
@@ -219,14 +249,14 @@ public class EasyListing {
     public static class EasyListAdapter extends ArrayAdapter {
 
         private final Context context;
-        private List<Object> data;
+        private List data;
 
         private LayoutInflater inflater;
         private OnItemClickListener onItemClickListener;
         private HashMap<Class<?>, OnCustomItemClickListener> onCustomItemClickListener;
         private HashMap<Class<?>, OnAfterViewCreation> onAfterViewCreation;
 
-        public EasyListAdapter(Context context, List<Object> data) {
+        public EasyListAdapter(Context context, List data) {
             super(context, android.R.layout.simple_list_item_1);
             this.onCustomItemClickListener = new HashMap<>();
             this.inflater = LayoutInflater.from(context);
@@ -244,12 +274,12 @@ public class EasyListing {
             this.context = context;
         }
 
-        public void setData(List<Object> data) {
+        public void setData(List data) {
             this.data = data;
             notifyDataSetChanged();
         }
 
-        public void addData(List<Object> data) {
+        public void addData(List data) {
             this.data.addAll(data);
             notifyDataSetChanged();
         }
@@ -291,7 +321,7 @@ public class EasyListing {
 
         @Override
         public long getItemId(int position) {
-            Long value = -1l;
+            Long value = Long.valueOf(position);
 
             Object item = getItem(position);
             Field field = ReflectionUtils.getRowIdentifierField(item);
@@ -300,7 +330,16 @@ public class EasyListing {
                 boolean oldAcessible = field.isAccessible();
                 try {
                     field.setAccessible(true);
-                    value = field.getLong(item);
+                    Object obj = field.get(item);
+                    if (obj instanceof String) {
+                        try {
+                            long val = Long.parseLong(String.valueOf(obj));
+                            value = val;
+                        } catch (Exception ex) {}
+                    } else if (obj instanceof Long)
+                        value = (long) obj;
+                    else if (obj instanceof Integer)
+                        value = Long.valueOf((int) obj);
                 } catch (Exception e) {
                 } finally {
                     field.setAccessible(oldAcessible);
@@ -367,7 +406,9 @@ public class EasyListing {
                 return convertView;
             }
             catch (Exception ex) {
-                return super.getView(position, convertView, parent);
+                Log.d(EasyListing.class.getName(), ex.getMessage());
+                return convertView;
+//                return super.getView(position, convertView, parent);
             }
         }
     }
